@@ -1,0 +1,56 @@
+{
+  "name": "transflow",
+  "version": "1.0.0",
+  "description": "Application de transcription d'appels en temps réel avec Whisper",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "npm run install:frontend && npm run install:backend && npm run install:whisper",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "install:whisper": "cd services/whisper && npm install",
+    "dev": "concurrently \"npm run dev:whisper\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:whisper": "cd services/whisper && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend && npm run build:whisper",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:whisper": "cd services/whisper && npm run build",
+    "start": "concurrently \"npm run start:whisper\" \"npm run start:backend\"",
+    "start:backend": "cd backend && npm start",
+    "start:whisper": "cd services/whisper && npm start",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd frontend && npm run format",
+    "format:backend": "cd backend && npm run format",
+    "clean": "rimraf frontend/dist frontend/build backend/dist services/whisper/dist",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^5.0.5"
+  },
+  "keywords": [
+    "transcription",
+    "real-time",
+    "whisper",
+    "websocket",
+    "react",
+    "nodejs",
+    "typescript"
+  ],
+  "author": "TarikZouine",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TarikZouine/transflow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TarikZouine/transflow/issues"
+  },
+  "homepage": "https://github.com/TarikZouine/transflow#readme"
+}
