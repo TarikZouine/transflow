@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Base de données MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: transflow-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: transflow
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - transflow-network
+
+  # Service Whisper
+  whisper-service:
+    build:
+      context: ./services/whisper
+      dockerfile: Dockerfile
+    container_name: transflow-whisper
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - CORS_ORIGIN=http://localhost:5000
+    volumes:
+      - whisper_temp:/app/temp
+      - whisper_models:/app/models
+    networks:
+      - transflow-network
+    depends_on:
+      - mongodb
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: transflow-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/transflow?authSource=admin
+      - CORS_ORIGIN=http://localhost:3000
+      - WHISPER_API_URL=http://whisper-service:8000
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - transflow-network
+    depends_on:
+      - mongodb
+      - whisper-service
+
+  # Frontend (pour le développement, en production utiliser nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: transflow-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+      - VITE_WS_URL=ws://localhost:5000
+    networks:
+      - transflow-network
+    depends_on:
+      - backend
+
+  # Redis pour le cache (optionnel)
+  redis:
+    image: redis:7.2-alpine
+    container_name: transflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - transflow-network
+
+networks:
+  transflow-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_logs:
+    driver: local
+  whisper_temp:
+    driver: local
+  whisper_models:
+    driver: local
