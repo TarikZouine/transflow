@@ -150,7 +150,7 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
                 }
                 r.publish(CHANNEL, json.dumps(start_payload))
             
-            # Mesurer le temps de transcription
+            # Mesurer le temps de transcription AVANT la transcription
             transcription_start = time.time()
             
             # Transcription Whisper
@@ -169,8 +169,13 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
                 rms = float(np.sqrt(np.mean(np.square(pcm_16k)))) if pcm_16k.size else 0.0
                 text = "[pause]" if rms <= 0.002 else "[inaudible]"
             
-            # Calculer le temps de traitement
+            # Calculer le temps de traitement IMMÉDIATEMENT après la transcription
             processing_time_ms = int((time.time() - transcription_start) * 1000)
+            
+            # Vérifier que le temps est raisonnable (max 30 secondes)
+            if processing_time_ms > 30000:
+                print(f"⚠️ Temps de traitement anormalement élevé: {processing_time_ms}ms, limité à 30000ms")
+                processing_time_ms = 30000
             
             speaker = 'client' if side == 'in' else 'agent'
             
