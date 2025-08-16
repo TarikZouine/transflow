@@ -172,10 +172,9 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
             # Calculer le temps de traitement IMMÉDIATEMENT après la transcription
             processing_time_ms = int((time.time() - transcription_start) * 1000)
             
-            # Vérifier que le temps est raisonnable (max 30 secondes)
-            if processing_time_ms > 30000:
-                print(f"⚠️ Temps de traitement anormalement élevé: {processing_time_ms}ms, limité à 30000ms")
-                processing_time_ms = 30000
+            # Log du temps de traitement pour diagnostic
+            if processing_time_ms > 10000:  # Plus de 10 secondes
+                print(f"⚠️ Temps de traitement élevé détecté: {processing_time_ms}ms pour {len(text)} caractères")
             
             speaker = 'client' if side == 'in' else 'agent'
             
