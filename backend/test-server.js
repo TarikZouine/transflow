@@ -177,7 +177,14 @@ try {
         finalProcessingTimeMs = null;
       }
 
-      if (!callId || !text) {
+      // Nettoyer le texte en retirant les sabliers (⏳)
+      let cleanText = text;
+      if (text && text.includes('⏳')) {
+        cleanText = text.replace(/⏳/g, '').trim();
+        console.log(`🧹 Texte nettoyé des sabliers: "${text}" → "${cleanText}"`);
+      }
+
+      if (!callId || !cleanText) {
         console.warn('⚠️ Transcript ignoré: callId ou text manquant');
         return;
       }
@@ -191,7 +198,7 @@ try {
           lang,
           confidence,
           offsetBytes,
-          text,
+          text: cleanText,
           status,
           processingTimeMs: finalProcessingTimeMs // Inclure le temps de traitement
         };
@@ -207,7 +214,7 @@ try {
       }
 
       // Distributed dedupe using Redis (best-effort)
-      const key = makeKey({ callId, tsMs, speaker, offsetBytes, text, processingTimeMs: finalProcessingTimeMs });
+      const key = makeKey({ callId, tsMs, speaker, offsetBytes, text: cleanText, processingTimeMs: finalProcessingTimeMs });
       const redisDedupeKey = `transcripts:dedupe:${key}`;
       try {
         // Initialiser la connexion de déduplication si nécessaire
@@ -215,7 +222,7 @@ try {
         
         const setOk = await redisDedup.set(redisDedupeKey, '1', 'EX', 120, 'NX');
         if (setOk !== 'OK') {
-          console.log(`⏩ Transcript déjà traité (dédup): ${callId} - ${text.substring(0, 30)}`);
+          console.log(`⏩ Transcript déjà traité (dédup): ${callId} - ${cleanText.substring(0, 30)}`);
           return; // already processed by another instance
         }
       } catch (e) {
@@ -238,7 +245,7 @@ try {
       try {
         const [result] = await mysqlPool.execute(
           'INSERT INTO transcripts (call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [callId, tsMs, speaker, lang, confidence, offsetBytes, text, finalProcessingTimeMs]
+          [callId, tsMs, speaker, lang, confidence, offsetBytes, cleanText, finalProcessingTimeMs]
         );
         console.log(`📝 Transcript inséré call=${callId} id=${result?.insertId ?? 'n/a'} time=${finalProcessingTimeMs}ms`);
       } catch (dbErr) {
@@ -254,7 +261,7 @@ try {
         lang,
         confidence,
         offsetBytes,
-        text,
+        text: cleanText,
         processingTimeMs: finalProcessingTimeMs
       }) + '\n';
       fs.appendFile('/tmp/transcripts.log', logLine, (err) => {
@@ -268,7 +275,7 @@ try {
         lang,
         confidence,
         offsetBytes,
-        text,
+        text: cleanText,
         processingTimeMs: finalProcessingTimeMs
       };
       // Emettre sur WebSocket (room par callId)

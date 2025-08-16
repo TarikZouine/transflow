@@ -1,57 +1,7 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Box, Paper, Typography, Chip, Grid } from '@mui/material';
-import apiService from '../services/api';
-import { getSocket } from '../services/ws';
-import { keyframes } from '@mui/system';
-
-// Animation pour les trois points
-const dotsAnimation = keyframes`
-  0%, 20% {
-    color: rgba(0, 0, 0, 0);
-    text-shadow: 0.25em 0 0 rgba(0, 0, 0, 0), 0.5em 0 0 rgba(0, 0, 0, 0);
-  }
-  40% {
-    color: rgba(0, 0, 0, 0.8);
-    text-shadow: 0.25em 0 0 rgba(0, 0, 0, 0), 0.5em 0 0 rgba(0, 0, 0, 0);
-  }
-  60% {
-    text-shadow: 0.25em 0 0 rgba(0, 0, 0, 0.8), 0.5em 0 0 rgba(0, 0, 0, 0);
-  }
-  80%, 100% {
-    text-shadow: 0.25em 0 0 rgba(0, 0, 0, 0.8), 0.5em 0 0 rgba(0, 0, 0, 0.8);
-  }
-`;
-
-// Composant pour l'indicateur de transcription
-const TranscriptionIndicator = () => (
-  <Box
-    component="span"
-    sx={{
-      display: 'inline-block',
-      fontFamily: 'monospace',
-      fontSize: '1.2em',
-      animation: `${dotsAnimation} 1.4s infinite linear`,
-      '&::after': {
-        content: '""',
-        display: 'inline-block',
-        width: '0.5em',
-        textAlign: 'left',
-        animation: `${dotsAnimation} 1.4s infinite linear`,
-        animationDelay: '0.2s',
-      },
-      '&::before': {
-        content: '""',
-        display: 'inline-block',
-        width: '0.5em',
-        textAlign: 'left',
-        animation: `${dotsAnimation} 1.4s infinite linear`,
-        animationDelay: '0.4s',
-      }
-    }}
-  >
-    ⏳
-  </Box>
-);
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Box, Grid, Paper, Typography, Chip } from '@mui/material';
+import { getSocket, subscribeToCall } from '../services/ws';
+import { apiService } from '../services/api';
 
 interface CallBrief {
   id: string;
@@ -274,15 +224,8 @@ const TranscriptsLive: React.FC = () => {
                         boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
                       }}>
                         {isTranscribing ? (
-                          // Remplacer "⏳" par le composant animé
-                          line.replace('⏳', '')
-                            .split('⏳')
-                            .map((part, index) => (
-                              <React.Fragment key={index}>
-                                {part}
-                                {index < line.split('⏳').length - 1 && <TranscriptionIndicator />}
-                              </React.Fragment>
-                            ))
+                          // Afficher le texte sans sabliers
+                          line.replace(/⏳/g, '')
                         ) : (
                           // Afficher le temps de traitement si disponible
                           (() => {
@@ -291,7 +234,8 @@ const TranscriptsLive: React.FC = () => {
                               const text = parts[1];
                               const timeMatch = text.match(/\[(\d+)ms\]$/);
                               if (timeMatch) {
-                                const processingTime = timeMatch[1];
+                                const processingTimeMs = parseInt(timeMatch[1]);
+                                const processingTimeSeconds = (processingTimeMs / 1000).toFixed(2);
                                 const textWithoutTime = text.replace(/\[\d+ms\]$/, '');
                                 return (
                                   <>
@@ -302,7 +246,7 @@ const TranscriptsLive: React.FC = () => {
                                       ml: 1,
                                       fontFamily: 'monospace'
                                     }}>
-                                      [{processingTime}ms]
+                                      [{processingTimeSeconds}s]
                                     </Box>
                                   </>
                                 );

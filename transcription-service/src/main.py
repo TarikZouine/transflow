@@ -146,7 +146,7 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
                     "lang": LANGUAGE,
                     "offsetBytes": offsets.get(side, 0),
                     "status": "transcribing",
-                    "text": "⏳"
+                    "text": "Transcription en cours..."
                 }
                 r.publish(CHANNEL, json.dumps(start_payload))
             
@@ -156,7 +156,7 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
             # Transcription Whisper
             seg_iter, info = model.transcribe(
                 pcm_16k,
-                language=LANGUAGE,
+                language="fr",
                 task="transcribe",
                 vad_filter=False,
                 beam_size=5,
@@ -177,6 +177,9 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
             # Marquer la fin de transcription
             transcription_state[side] = False
             
+            # Nettoyer le texte en retirant les sabliers et espaces
+            clean_text = text.strip().replace('⏳', '').strip()
+            
             payload = {
                 "callId": call_id,
                 "tsMs": int(time.time() * 1000),
@@ -185,11 +188,11 @@ def tail_transcribe_call(model: WhisperModel, r: redis.Redis, call_id: str, in_p
                 "confidence": getattr(info, 'average_logprob', None),
                 "offsetBytes": offsets.get(side, 0),
                 "status": "completed",
-                "text": text.strip(),
+                "text": clean_text,
                 "processingTimeMs": processing_time_ms
             }
             r.publish(CHANNEL, json.dumps(payload))
-            print(f"[transcriber] published call={call_id} side={speaker} len={len(text)} time={processing_time_ms}ms")
+            print(f"[transcriber] published call={call_id} side={speaker} len={len(clean_text)} time={processing_time_ms}ms")
 
 
 def cleanup_dead_threads(threads):
