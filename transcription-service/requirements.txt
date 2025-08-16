@@ -1,0 +1,7 @@
+faster-whisper==1.0.3
+numpy==1.26.4
+soundfile==0.12.1
+PyYAML==6.0.2
+redis==5.0.7
+watchdog==4.0.1
+

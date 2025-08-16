@@ -8,7 +8,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
-import { connectDatabase } from './config/database';
+// import { connectDatabase } from './config/database';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { setupWebSocket } from './services/websocket';
@@ -69,7 +69,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Routes de santé
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
@@ -101,8 +101,9 @@ app.use('*', (req, res) => {
 // Démarrage du serveur
 const startServer = async (): Promise<void> => {
   try {
-    // Connexion à la base de données
-    await connectDatabase();
+    // Connexion à la base de données (désactivée temporairement)
+    // await connectDatabase();
+    logger.info('⚠️  Base de données désactivée temporairement');
     
     // Démarrage du serveur
     server.listen(PORT, () => {

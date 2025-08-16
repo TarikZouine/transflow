@@ -23,12 +23,12 @@ app.use(express.urlencoded({ extended: true }));
 
 // Configuration de multer pour les uploads
 const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
+  destination: async (_req, _file, cb) => {
     const tempDir = process.env.TEMP_DIR || path.join(process.cwd(), 'temp');
     await fs.ensureDir(tempDir);
     cb(null, tempDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, `audio-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -39,7 +39,7 @@ const upload = multer({
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowedTypes = [
       'audio/wav',
       'audio/mpeg',
@@ -58,7 +58,7 @@ const upload = multer({
 });
 
 // Route de santé
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'OK',
     service: 'Whisper Transcription Service',
@@ -69,7 +69,7 @@ app.get('/health', (req, res) => {
 });
 
 // Route pour lister les modèles disponibles
-app.get('/v1/models', (req, res) => {
+app.get('/v1/models', (_req, res) => {
   const models = [
     {
       id: 'whisper-tiny',
@@ -120,15 +120,16 @@ app.get('/v1/models', (req, res) => {
 });
 
 // Route principale de transcription
-app.post('/v1/audio/transcriptions', upload.single('audio'), async (req, res) => {
+app.post('/v1/audio/transcriptions', upload.single('audio'), async (req, res): Promise<void> => {
   try {
     if (!req.file) {
-      return res.status(400).json({
+      res.status(400).json({
         error: {
           message: 'Aucun fichier audio fourni',
           type: 'invalid_request_error',
         }
       });
+      return;
     }
 
     const {
@@ -211,17 +212,18 @@ app.post('/v1/audio/translations', upload.single('audio'), async (req, res) => {
 });
 
 // Gestion des erreurs
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction): void => {
   console.error('Erreur dans le service Whisper:', error);
   
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({
+      res.status(400).json({
         error: {
           message: 'Fichier trop volumineux',
           type: 'invalid_request_error',
         }
       });
+      return;
     }
   }
 
@@ -234,7 +236,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
 });
 
 // Route 404
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
   res.status(404).json({
     error: {
       message: 'Endpoint non trouvé',

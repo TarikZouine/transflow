@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // Configuration de base pour l'API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Connexion directe au serveur SLN rapide
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://ai.intelios.us:5002/api';
 
 class ApiService {
   private api: AxiosInstance;
@@ -66,6 +67,27 @@ class ApiService {
 
   // Méthodes spécifiques à l'application
   
+  // Appels en temps réel
+  async getCalls() {
+    return this.get('/calls');
+  }
+
+  async getActiveCalls() {
+    return this.get('/calls/active');
+  }
+
+  async getCall(id: string) {
+    return this.get(`/calls/${id}`);
+  }
+
+  async getCallFileInfo(id: string, type: 'in' | 'out') {
+    return this.get(`/calls/${id}/fileinfo/${type}`);
+  }
+
+  async monitorCall(id: string) {
+    return this.get(`/calls/${id}/monitor`);
+  }
+
   // Sessions de transcription
   async getSessions() {
     return this.get('/sessions');

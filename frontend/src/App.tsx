@@ -6,7 +6,9 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 
 // Pages
 import HomePage from './pages/HomePage';
+import CallsPage from './pages/CallsPage';
 import TranscriptionPage from './pages/TranscriptionPage';
+import TranscriptsLive from './pages/TranscriptsLive';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 
@@ -43,8 +45,10 @@ function App(): JSX.Element {
           <Layout>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/calls" element={<CallsPage />} />
               <Route path="/transcription" element={<TranscriptionPage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/transcripts-live" element={<TranscriptsLive />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </Layout>

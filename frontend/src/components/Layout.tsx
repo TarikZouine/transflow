@@ -15,6 +15,7 @@ import {
 import {
   Home,
   Mic,
+  Phone,
   History,
   Settings,
 } from '@mui/icons-material';
@@ -32,6 +33,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = [
     { text: 'Accueil', icon: <Home />, path: '/' },
+    { text: 'Appels en Direct', icon: <Phone />, path: '/calls' },
+    { text: 'Transcripts Live', icon: <Mic />, path: '/transcripts-live' },
     { text: 'Transcription', icon: <Mic />, path: '/transcription' },
     { text: 'Historique', icon: <History />, path: '/history' },
     { text: 'Paramètres', icon: <Settings />, path: '/settings' },
