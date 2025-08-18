@@ -127,9 +127,9 @@ try {
   const recentQueue = [];
   const MAX_RECENT = 2000;
 
-  function makeKey({ callId, tsMs, speaker, offsetBytes, text, processingTimeMs }) {
+  function makeKey({ callId, tsMs, speaker, offsetBytes, text, processingTimeMs, transcriptionEngine }) {
     const h = crypto.createHash('md5').update(String(text || '')).digest('hex').slice(0, 8);
-    return `${callId}|${speaker}|${tsMs}|${offsetBytes}|${processingTimeMs || 'null'}|${h}`;
+    return `${callId}|${speaker}|${tsMs}|${offsetBytes}|${processingTimeMs || 'null'}|${transcriptionEngine || 'whisper'}|${h}`;
   }
 
   redis.on('message', async (channel, message) => {
@@ -219,7 +219,8 @@ try {
       }
 
       // Distributed dedupe using Redis (best-effort)
-      const key = makeKey({ callId, tsMs, speaker, offsetBytes, text: cleanText, processingTimeMs: finalProcessingTimeMs });
+      const dedupeEngine = global.TRANSCRIPTION_ENGINE || 'whisper';
+      const key = makeKey({ callId, tsMs, speaker, offsetBytes, text: cleanText, processingTimeMs: finalProcessingTimeMs, transcriptionEngine: dedupeEngine });
       const redisDedupeKey = `transcripts:dedupe:${key}`;
       try {
         // Initialiser la connexion de déduplication si nécessaire
