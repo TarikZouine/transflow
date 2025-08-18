@@ -1,5 +1,14 @@
 // Types partagés entre le frontend et le backend
 
+export type TranscriptionEngine = 'whisper' | 'vosk';
+
+export interface TranscriptionEngineConfig {
+  engine: TranscriptionEngine;
+  model?: string;
+  language?: string;
+  confidenceThreshold?: number;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -32,6 +41,7 @@ export interface TranscriptionSegment {
   startTime: number;
   endTime: number;
   language?: string;
+  transcriptionEngine?: TranscriptionEngine;
   createdAt: Date;
 }
 
@@ -57,6 +67,7 @@ export interface TranscriptionResult {
   language: string;
   segments: TranscriptionSegment[];
   processingTime: number;
+  transcriptionEngine: TranscriptionEngine;
 }
 
 export interface ApiResponse<T = any> {

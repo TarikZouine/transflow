@@ -37,7 +37,8 @@ const TranscriptsLive: React.FC = () => {
             const existingLines = prev[callId] || [];
             const newLines = data.data.map((t: any) => {
               const prefix = t.speaker ? `${t.speaker}: ` : '';
-              return `${new Date(t.ts_ms).toLocaleTimeString()} — ${prefix}${t.text}`;
+              const engineTag = t.transcription_engine ? ` [${t.transcription_engine.toUpperCase()}]` : '';
+              return `${new Date(t.ts_ms).toLocaleTimeString()} — ${prefix}${t.text}${engineTag}`;
             });
             
             // Combiner l'historique existant avec les nouveaux transcripts
@@ -126,10 +127,14 @@ const TranscriptsLive: React.FC = () => {
             `${t.text} [${t.processingTimeMs}ms]` : 
             t.text;
           
+          // Ajouter le moteur de transcription
+          const engineTag = t.transcriptionEngine ? ` [${t.transcriptionEngine.toUpperCase()}]` : '';
+          const finalText = textWithTime + engineTag;
+          
           if (existingIndex >= 0) {
-            arr[existingIndex] = `${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}${textWithTime}`;
+            arr[existingIndex] = `${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}${finalText}`;
           } else {
-            arr.push(`${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}${textWithTime}`);
+            arr.push(`${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}${finalText}`);
           }
         }
         
@@ -227,19 +232,24 @@ const TranscriptsLive: React.FC = () => {
                           // Afficher le texte sans sabliers
                           line.replace(/⏳/g, '')
                         ) : (
-                          // Afficher le temps de traitement si disponible
+                          // Afficher le temps de traitement et le moteur si disponibles
                           (() => {
                             const parts = line.split(' — ');
                             if (parts.length >= 2) {
                               const text = parts[1];
                               const timeMatch = text.match(/\[(\d+)ms\]$/);
-                              if (timeMatch) {
-                                const processingTimeMs = parseInt(timeMatch[1]);
-                                const processingTimeSeconds = (processingTimeMs / 1000).toFixed(2);
-                                const textWithoutTime = text.replace(/\[\d+ms\]$/, '');
-                                return (
-                                  <>
-                                    {textWithoutTime}
+                              const engineMatch = text.match(/\[(WHISPER|VOSK)\]$/);
+                              
+                              if (timeMatch || engineMatch) {
+                                let displayText = text;
+                                let timeDisplay = null;
+                                let engineDisplay = null;
+                                
+                                // Extraire le temps de traitement
+                                if (timeMatch) {
+                                  const processingTimeMs = parseInt(timeMatch[1]);
+                                  const processingTimeSeconds = (processingTimeMs / 1000).toFixed(2);
+                                  timeDisplay = (
                                     <Box component="span" sx={{ 
                                       fontSize: '0.8em', 
                                       color: '#666', 
@@ -248,6 +258,35 @@ const TranscriptsLive: React.FC = () => {
                                     }}>
                                       [{processingTimeSeconds}s]
                                     </Box>
+                                  );
+                                  displayText = displayText.replace(/\[\d+ms\]$/, '');
+                                }
+                                
+                                // Extraire le moteur de transcription
+                                if (engineMatch) {
+                                  const engine = engineMatch[1];
+                                  engineDisplay = (
+                                    <Box component="span" sx={{ 
+                                      fontSize: '0.7em', 
+                                      color: engine === 'WHISPER' ? '#1976d2' : '#388e3c',
+                                      ml: 1,
+                                      fontFamily: 'monospace',
+                                      fontWeight: 'bold',
+                                      backgroundColor: engine === 'WHISPER' ? '#e3f2fd' : '#e8f5e8',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px'
+                                    }}>
+                                      {engine}
+                                    </Box>
+                                  );
+                                  displayText = displayText.replace(/\[(WHISPER|VOSK)\]$/, '');
+                                }
+                                
+                                return (
+                                  <>
+                                    {displayText}
+                                    {timeDisplay}
+                                    {engineDisplay}
                                   </>
                                 );
                               }

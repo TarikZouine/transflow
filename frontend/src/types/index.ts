@@ -30,6 +30,7 @@ export interface AppState {
 }
 
 export interface UserSettings {
+  transcriptionEngine: TranscriptionEngine;
   language: string;
   model: string;
   autoSave: boolean;

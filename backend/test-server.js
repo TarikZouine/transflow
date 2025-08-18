@@ -101,6 +101,11 @@ try {
     console.log(`🌐 MySQL via TCP: ${mysqlConfig.host}:${mysqlConfig.port}`);
   }
   const mysqlPool = mysql.createPool(mysqlConfig);
+
+  // Configuration du moteur de transcription
+  const TRANSCRIPTION_ENGINE = process.env.TRANSCRIPTION_ENGINE || 'whisper';
+  console.log(`🎯 Moteur de transcription configuré: ${TRANSCRIPTION_ENGINE}`);
+
   // Test connectivité
   mysqlPool.query('SELECT 1').then(()=>{
     console.log('✅ MySQL OK');
@@ -243,16 +248,18 @@ try {
 
       // Persister en base (leader uniquement)
       try {
+        const currentEngine = global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
         const [result] = await mysqlPool.execute(
-          'INSERT INTO transcripts (call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [callId, tsMs, speaker, lang, confidence, offsetBytes, cleanText, finalProcessingTimeMs]
+          'INSERT INTO transcripts (call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms, transcription_engine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [callId, tsMs, speaker, lang, confidence, offsetBytes, cleanText, finalProcessingTimeMs, currentEngine]
         );
-        console.log(`📝 Transcript inséré call=${callId} id=${result?.insertId ?? 'n/a'} time=${finalProcessingTimeMs}ms`);
+        console.log(`📝 Transcript inséré call=${callId} id=${result?.insertId ?? 'n/a'} time=${finalProcessingTimeMs}ms engine=${currentEngine}`);
       } catch (dbErr) {
         console.error('❌ Insertion MySQL transcript échouée:', dbErr.message);
       }
 
       // Écrire en fichier texte (/tmp/transcripts.log) (après dédup leader)
+      const currentEngine = global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
       const logLine = JSON.stringify({
         ts: new Date().toISOString(),
         callId,
@@ -262,7 +269,8 @@ try {
         confidence,
         offsetBytes,
         text: cleanText,
-        processingTimeMs: finalProcessingTimeMs
+        processingTimeMs: finalProcessingTimeMs,
+        transcriptionEngine: currentEngine
       }) + '\n';
       fs.appendFile('/tmp/transcripts.log', logLine, (err) => {
         if (err) console.error('❌ Écriture transcript /tmp/transcripts.log échouée:', err.message);
@@ -276,7 +284,8 @@ try {
         confidence,
         offsetBytes,
         text: cleanText,
-        processingTimeMs: finalProcessingTimeMs
+        processingTimeMs: finalProcessingTimeMs,
+        transcriptionEngine: currentEngine
       };
       // Emettre sur WebSocket (room par callId)
       io.to(`call:${callId}`).emit('transcript', wsPayload);
@@ -329,7 +338,7 @@ try {
       const { limit = 100, offset = 0 } = req.query;
       
       const [rows] = await mysqlPool.execute(
-        'SELECT call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, created_at FROM transcripts WHERE call_id = ? ORDER BY ts_ms ASC LIMIT ? OFFSET ?',
+        'SELECT call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms, transcription_engine, created_at FROM transcripts WHERE call_id = ? ORDER BY ts_ms ASC LIMIT ? OFFSET ?',
         [callId, parseInt(limit), parseInt(offset)]
       );
       
@@ -353,7 +362,7 @@ try {
       const { limit = 200, hours = 24 } = req.query;
       
       const [rows] = await mysqlPool.execute(
-        'SELECT call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, created_at FROM transcripts WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR) ORDER BY ts_ms DESC LIMIT ?',
+        'SELECT call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms, transcription_engine, created_at FROM transcripts WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR) ORDER BY ts_ms DESC LIMIT ?',
         [parseInt(hours), parseInt(limit)]
       );
       
@@ -367,6 +376,53 @@ try {
       res.status(500).json({
         success: false,
         error: 'Erreur récupération transcripts récents'
+      });
+    }
+  });
+
+  // Route pour changer le moteur de transcription
+  app.post('/api/transcription/engine', async (req, res) => {
+    try {
+      const { engine } = req.body;
+      
+      if (!engine || !['whisper', 'vosk'].includes(engine)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Moteur invalide. Doit être "whisper" ou "vosk"'
+        });
+      }
+
+      // Mettre à jour la variable globale
+      global.TRANSCRIPTION_ENGINE = engine;
+      
+      console.log(`🔄 Moteur de transcription changé vers: ${engine}`);
+      
+      res.json({
+        success: true,
+        message: `Moteur changé vers ${engine}`,
+        engine: engine
+      });
+    } catch (error) {
+      console.error('❌ Erreur changement moteur:', error.message);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur changement moteur'
+      });
+    }
+  });
+
+  // Route pour obtenir le moteur actuel
+  app.get('/api/transcription/engine', async (req, res) => {
+    try {
+      res.json({
+        success: true,
+        engine: global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE
+      });
+    } catch (error) {
+      console.error('❌ Erreur récupération moteur:', error.message);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur récupération moteur'
       });
     }
   });
