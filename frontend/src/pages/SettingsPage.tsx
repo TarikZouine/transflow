@@ -31,9 +31,20 @@ import {
 } from '@mui/icons-material';
 import ConfigService, { TranscriptionSettings } from '../services/configService';
 
+interface Settings {
+  engine: 'whisper' | 'vosk';
+  language: string;
+  model: string;
+  autoSave: boolean;
+  realTimeTranscription: boolean;
+  speakerDetection: boolean;
+  confidenceThreshold: number;
+  audioQuality: string;
+}
+
 const SettingsPage: React.FC = () => {
   const configService = ConfigService.getInstance();
-  const [settings, setSettings] = useState<TranscriptionSettings>(configService.getSettings());
+  const [settings, setSettings] = useState<Settings>(configService.getSettings());
   const [saved, setSaved] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSwitchingEngine, setIsSwitchingEngine] = useState(false);
@@ -43,13 +54,13 @@ const SettingsPage: React.FC = () => {
     setSettings(configService.getSettings());
   }, []);
 
-  const handleSettingChange = async (key: keyof TranscriptionSettings, value: any): Promise<void> => {
+  const handleSettingChange = async (key: keyof Settings, value: any): Promise<void> => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     setSaved(false);
 
     // Si on change le moteur, valider et appliquer le changement
-    if (key === 'transcriptionEngine') {
+    if (key === 'engine') {
       setIsSwitchingEngine(true);
       try {
         const success = await configService.switchTranscriptionEngine(value);
@@ -98,7 +109,16 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleReset = (): void => {
-    const defaultSettings = configService.getSettings();
+    const defaultSettings = {
+      engine: 'whisper',
+      language: 'fr',
+      model: 'base',
+      autoSave: true,
+      realTimeTranscription: true,
+      speakerDetection: false,
+      confidenceThreshold: 0.7,
+      audioQuality: 'high',
+    };
     setSettings(defaultSettings);
     setSaved(false);
     setValidationErrors([]);
@@ -149,23 +169,23 @@ const SettingsPage: React.FC = () => {
               <FormLabel component="legend">Choisissez votre moteur de transcription</FormLabel>
               <RadioGroup
                 row
-                value={settings.transcriptionEngine}
-                onChange={(e) => handleSettingChange('transcriptionEngine', e.target.value)}
+                value={settings.engine}
+                onChange={(e) => handleSettingChange('engine', e.target.value)}
               >
                 <Card sx={{ mr: 2, minWidth: 200, cursor: 'pointer' }}>
                   <CardContent 
                     sx={{ 
                       p: 2, 
                       cursor: 'pointer',
-                      bgcolor: settings.transcriptionEngine === 'whisper' ? 'primary.light' : 'background.paper',
-                      color: settings.transcriptionEngine === 'whisper' ? 'primary.contrastText' : 'text.primary',
+                      bgcolor: settings.engine === 'whisper' ? 'primary.light' : 'background.paper',
+                      color: settings.engine === 'whisper' ? 'primary.contrastText' : 'text.primary',
                     }}
-                    onClick={() => handleSettingChange('transcriptionEngine', 'whisper')}
+                    onClick={() => handleSettingChange('engine', 'whisper')}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Radio value="whisper" checked={settings.transcriptionEngine === 'whisper'} />
+                      <Radio value="whisper" checked={settings.engine === 'whisper'} />
                       <Typography variant="h6">Whisper</Typography>
-                      {isSwitchingEngine && settings.transcriptionEngine === 'whisper' && (
+                      {isSwitchingEngine && settings.engine === 'whisper' && (
                         <Chip label="Changement..." size="small" color="primary" />
                       )}
                     </Box>
@@ -190,15 +210,15 @@ const SettingsPage: React.FC = () => {
                     sx={{ 
                       p: 2, 
                       cursor: 'pointer',
-                      bgcolor: settings.transcriptionEngine === 'vosk' ? 'primary.light' : 'background.paper',
-                      color: settings.transcriptionEngine === 'vosk' ? 'primary.contrastText' : 'text.primary',
+                      bgcolor: settings.engine === 'vosk' ? 'primary.light' : 'background.paper',
+                      color: settings.engine === 'vosk' ? 'primary.contrastText' : 'text.primary',
                     }}
-                    onClick={() => handleSettingChange('transcriptionEngine', 'vosk')}
+                    onClick={() => handleSettingChange('engine', 'vosk')}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Radio value="vosk" checked={settings.transcriptionEngine === 'vosk'} />
+                      <Radio value="vosk" checked={settings.engine === 'vosk'} />
                       <Typography variant="h6">Vosk</Typography>
-                      {isSwitchingEngine && settings.transcriptionEngine === 'vosk' && (
+                      {isSwitchingEngine && settings.engine === 'vosk' && (
                         <Chip label="Changement..." size="small" color="primary" />
                       )}
                     </Box>
@@ -246,14 +266,14 @@ const SettingsPage: React.FC = () => {
 
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>
-                {settings.transcriptionEngine === 'whisper' ? 'Modèle Whisper' : 'Modèle Vosk'}
+                {settings.engine === 'whisper' ? 'Modèle Whisper' : 'Modèle Vosk'}
               </InputLabel>
               <Select
                 value={settings.model}
-                label={settings.transcriptionEngine === 'whisper' ? 'Modèle Whisper' : 'Modèle Vosk'}
+                label={settings.engine === 'whisper' ? 'Modèle Whisper' : 'Modèle Vosk'}
                 onChange={(e) => handleSettingChange('model', e.target.value)}
               >
-                {settings.transcriptionEngine === 'whisper' ? (
+                {settings.engine === 'whisper' ? (
                   getWhisperModels().map((model) => (
                     <MenuItem key={model.value} value={model.value}>
                       <Box>
@@ -363,14 +383,16 @@ const SettingsPage: React.FC = () => {
 
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
-                Moteur actuel: {getEngineInfo(settings.transcriptionEngine).name}
+                Moteur actuel: {settings.engine ? getEngineInfo(settings.engine).name : 'Non défini'}
               </Typography>
-              <Chip 
-                label={settings.transcriptionEngine.toUpperCase()} 
-                color="primary" 
-                variant="outlined"
-                icon={<AutoAwesome />}
-              />
+              {settings.engine && (
+                <Chip 
+                  label={settings.engine.toUpperCase()} 
+                  color="primary" 
+                  variant="outlined"
+                  icon={<AutoAwesome />}
+                />
+              )}
             </Box>
           </Paper>
         </Grid>
