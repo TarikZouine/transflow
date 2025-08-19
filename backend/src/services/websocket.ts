@@ -57,7 +57,7 @@ class WebSocketService {
       });
 
       // Événement de réception de chunk audio
-      socket.on('audio_chunk', async (data) => {
+      socket.on('audio_chunk', async (_data) => {
         try {
           const sessionId = this.socketSessions.get(socket.id);
           if (!sessionId) {

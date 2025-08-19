@@ -1,13 +1,13 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 
 const router = express.Router();
 
 // GET /api/sessions - Récupérer toutes les sessions
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   // TODO: Implémenter la récupération depuis la base de données
-  const sessions = []; // Placeholder
+  const sessions: any[] = []; // Placeholder
   
   res.json({
     success: true,
@@ -22,17 +22,18 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/sessions/:id - Récupérer une session spécifique
-router.get('/:id', asyncHandler(async (req, res) => {
-  const { id } = req.params;
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id: _id } = req.params;
   
   // TODO: Implémenter la récupération depuis la base de données
   const session = null; // Placeholder
   
   if (!session) {
-    return res.status(404).json({
+    res.status(404).json({
       success: false,
       error: 'Session non trouvée',
     });
+    return;
   }
   
   res.json({
@@ -42,14 +43,15 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/sessions - Créer une nouvelle session
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const { title, metadata } = req.body;
   
   if (!title) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Le titre de la session est requis',
     });
+    return;
   }
   
   // TODO: Implémenter la création en base de données
@@ -73,7 +75,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 // PUT /api/sessions/:id - Mettre à jour une session
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const updateData = req.body;
   
@@ -94,7 +96,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 // DELETE /api/sessions/:id - Supprimer une session
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   
   // TODO: Implémenter la suppression en base de données
@@ -108,11 +110,11 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/sessions/:id/transcriptions - Récupérer les transcriptions d'une session
-router.get('/:id/transcriptions', asyncHandler(async (req, res) => {
-  const { id } = req.params;
+router.get('/:id/transcriptions', asyncHandler(async (req: Request, res: Response) => {
+  const { id: _id } = req.params;
   
   // TODO: Implémenter la récupération des transcriptions depuis la base de données
-  const transcriptions = []; // Placeholder
+  const transcriptions: any[] = []; // Placeholder
   
   res.json({
     success: true,
@@ -121,7 +123,7 @@ router.get('/:id/transcriptions', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/sessions/:id/download - Télécharger la transcription d'une session
-router.get('/:id/download', asyncHandler(async (req, res) => {
+router.get('/:id/download', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { format = 'txt' } = req.query;
   

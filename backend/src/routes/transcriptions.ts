@@ -1,15 +1,15 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 
 const router = express.Router();
 
 // GET /api/transcriptions - Récupérer toutes les transcriptions
-router.get('/', asyncHandler(async (req, res) => {
-  const { sessionId, page = 1, limit = 50 } = req.query;
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const { sessionId: _sessionId, page = 1, limit = 50 } = req.query;
   
   // TODO: Implémenter la récupération depuis la base de données
-  const transcriptions = []; // Placeholder
+  const transcriptions: any[] = []; // Placeholder
   
   res.json({
     success: true,
@@ -24,17 +24,18 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/transcriptions/:id - Récupérer une transcription spécifique
-router.get('/:id', asyncHandler(async (req, res) => {
-  const { id } = req.params;
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id: _id } = req.params;
   
   // TODO: Implémenter la récupération depuis la base de données
   const transcription = null; // Placeholder
   
   if (!transcription) {
-    return res.status(404).json({
+    res.status(404).json({
       success: false,
       error: 'Transcription non trouvée',
     });
+    return;
   }
   
   res.json({
@@ -44,14 +45,15 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/transcriptions - Créer une nouvelle transcription
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const { sessionId, text, speaker, confidence, startTime, endTime } = req.body;
   
   if (!sessionId || !text) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Session ID et texte sont requis',
     });
+    return;
   }
   
   // TODO: Implémenter la création en base de données
@@ -76,7 +78,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 // PUT /api/transcriptions/:id - Mettre à jour une transcription
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const updateData = req.body;
   
@@ -95,8 +97,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 // DELETE /api/transcriptions/:id - Supprimer une transcription
-router.delete('/:id', asyncHandler(async (req, res) => {
-  const { id } = req.params;
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id: _id } = req.params;
   
   // TODO: Implémenter la suppression en base de données
   
@@ -107,34 +109,35 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/transcriptions/search - Rechercher dans les transcriptions
-router.post('/search', asyncHandler(async (req, res) => {
-  const { query, sessionId, startDate, endDate } = req.body;
+router.post('/search', asyncHandler(async (req: Request, res: Response) => {
+  const { query, sessionId: _sessionId, startDate: _startDate, endDate: _endDate } = req.body;
   
   if (!query) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Terme de recherche requis',
     });
+    return;
   }
   
   // TODO: Implémenter la recherche en base de données
-  const searchResults = []; // Placeholder
+  const searchResults: any[] = []; // Placeholder
   
   res.json({
     success: true,
     data: searchResults,
     query: {
       term: query,
-      sessionId,
-      startDate,
-      endDate,
+      sessionId: _sessionId,
+      startDate: _startDate,
+      endDate: _endDate,
     },
   });
 }));
 
 // GET /api/transcriptions/stats - Statistiques des transcriptions
-router.get('/stats', asyncHandler(async (req, res) => {
-  const { sessionId, startDate, endDate } = req.query;
+router.get('/stats', asyncHandler(async (_req: Request, res: Response) => {
+  // const { sessionId, startDate, endDate } = req.query; // Commenté car non utilisé
   
   // TODO: Implémenter le calcul des statistiques
   const stats = {

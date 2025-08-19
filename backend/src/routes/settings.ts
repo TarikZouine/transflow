@@ -1,11 +1,11 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 
 const router = express.Router();
 
 // GET /api/settings - Récupérer les paramètres utilisateur
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   // TODO: Implémenter la récupération depuis la base de données ou fichier de config
   const defaultSettings = {
     language: 'fr',
@@ -27,7 +27,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // PUT /api/settings - Mettre à jour les paramètres utilisateur
-router.put('/', asyncHandler(async (req, res) => {
+router.put('/', asyncHandler(async (req: Request, res: Response) => {
   const settings = req.body;
   
   // Validation des paramètres
@@ -88,7 +88,7 @@ router.put('/', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/settings/reset - Réinitialiser les paramètres par défaut
-router.post('/reset', asyncHandler(async (req, res) => {
+router.post('/reset', asyncHandler(async (_req: Request, res: Response) => {
   const defaultSettings = {
     language: 'fr',
     model: 'base',
@@ -113,7 +113,7 @@ router.post('/reset', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/settings/models - Récupérer les modèles disponibles
-router.get('/models', asyncHandler(async (req, res) => {
+router.get('/models', asyncHandler(async (_req: Request, res: Response) => {
   // TODO: Récupérer les modèles depuis le service Whisper
   const availableModels = [
     {
@@ -160,7 +160,7 @@ router.get('/models', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/settings/languages - Récupérer les langues supportées
-router.get('/languages', asyncHandler(async (req, res) => {
+router.get('/languages', asyncHandler(async (_req: Request, res: Response) => {
   const supportedLanguages = [
     { code: 'fr', name: 'Français', nativeName: 'Français' },
     { code: 'en', name: 'Anglais', nativeName: 'English' },
