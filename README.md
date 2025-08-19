@@ -1,17 +1,19 @@
-# TransFlow - Transcription d'appels en temps réel
+# TransFlow - Transcription d'appels en temps réel avec IA
 
-TransFlow est une application complète de transcription d'appels téléphoniques en temps réel, alimentée par l'intelligence artificielle Whisper d'OpenAI.
+TransFlow est une application complète de transcription d'appels téléphoniques en temps réel, alimentée par l'intelligence artificielle Whisper et Vosk. Le système inclut une interface moderne, une API sécurisée, et des capacités de transcription en temps réel via WebSocket.
 
 ## 🚀 Fonctionnalités
 
 - **Transcription en temps réel** : Transcription instantanée des conversations téléphoniques
-- **Interface utilisateur moderne** : Interface React avec Material-UI
+- **Interface utilisateur moderne** : Interface React avec TypeScript et Tailwind CSS
+- **Système d'authentification** : JWT, routes protégées, sécurité renforcée
 - **WebSockets** : Communication en temps réel entre le frontend et le backend
-- **Service Whisper** : Service de transcription dédié basé sur Whisper
+- **Services de transcription** : Support pour Whisper et Vosk
 - **Historique des sessions** : Sauvegarde et consultation des sessions passées
 - **Paramètres configurables** : Choix du modèle, langue, qualité audio, etc.
 - **Upload de fichiers** : Transcription de fichiers audio existants
 - **Export des transcriptions** : Téléchargement en différents formats
+- **Monitoring et logs** : Surveillance en temps réel des performances
 
 ## 🏗️ Architecture
 
@@ -28,24 +30,26 @@ transflow/
 
 ### Frontend
 - **React 18** avec TypeScript
-- **Material-UI** pour l'interface utilisateur
+- **Tailwind CSS** pour l'interface utilisateur
 - **Socket.io Client** pour les WebSockets
-- **React Query** pour la gestion des données
+- **Context API** pour la gestion d'état et l'authentification
 - **Vite** comme bundler
-- **Zustand** pour la gestion d'état
+- **React Router** pour la navigation
 
 ### Backend
 - **Node.js** avec Express
 - **Socket.io** pour les WebSockets en temps réel
 - **TypeScript** pour la sécurité des types
 - **MongoDB** avec Mongoose pour la base de données
+- **JWT** pour l'authentification
+- **Helmet** pour la sécurité
 - **Winston** pour les logs
 - **Multer** pour l'upload de fichiers
 
-### Service Whisper
-- **Node.js** avec Express
-- **API compatible Whisper** pour la transcription
-- **Support multi-formats** audio
+### Services de Transcription
+- **Whisper** : API OpenAI pour la transcription de haute qualité
+- **Vosk** : Transcription locale en temps réel
+- **Support multi-formats** audio et streaming
 
 ## 📦 Installation
 
@@ -76,28 +80,45 @@ npm install
 
 ## 🚀 Démarrage
 
-### 1. Service Whisper
+### 1. Backend
 ```bash
-cd services/whisper
-npm run dev
-# Serveur disponible sur http://localhost:8000
+# Démarrer le backend avec le script automatisé
+./start-backend.sh
+# Serveur disponible sur http://localhost:5002
 ```
 
-### 2. Backend
-```bash
-cd backend
-cp .env.example .env
-# Configurer les variables d'environnement
-npm run dev
-# Serveur disponible sur http://localhost:5000
-```
-
-### 3. Frontend
+### 2. Frontend
 ```bash
 cd frontend
 npm run dev
 # Application disponible sur http://localhost:3000
 ```
+
+### 3. Vérification
+```bash
+# Tester la connectivité des services
+./test-connectivity.sh
+```
+
+## 🔒 Sécurité
+
+- **Authentification JWT** avec expiration configurable
+- **Routes protégées** avec middleware d'authentification
+- **Validation des entrées** utilisateur
+- **Rate limiting** sur les API
+- **En-têtes de sécurité** avec Helmet
+- **CORS** configuré pour le développement
+
+## 📊 État Actuel
+
+✅ **Frontend** : Interface React moderne avec authentification  
+✅ **Backend** : API REST et WebSocket sécurisée  
+✅ **Base de données** : MongoDB avec schémas optimisés  
+✅ **Transcription** : Support Whisper et Vosk en temps réel  
+✅ **Sécurité** : Système d'authentification complet  
+✅ **Documentation** : Guides de déploiement et sécurité  
+
+🔄 **En cours** : Tests automatisés, CI/CD, monitoring avancé
 
 ## 🔧 Configuration
 
@@ -221,7 +242,14 @@ npm test
 
 ## 🚀 Déploiement
 
-### Docker (Recommandé)
+### Déploiement Sécurisé (Recommandé)
+```bash
+# Utiliser le script de déploiement sécurisé
+cd frontend
+./deploy-secure.sh
+```
+
+### Docker
 ```bash
 # Construction des images
 docker-compose build
@@ -233,7 +261,16 @@ docker-compose up -d
 ### Déploiement manuel
 1. Build des applications
 2. Configuration des variables d'environnement
-3. Démarrage des services dans l'ordre : Whisper → Backend → Frontend
+3. Démarrage des services dans l'ordre : Backend → Frontend
+
+## 🎯 Prochaines Étapes
+
+- [ ] **Tests automatisés** : Jest, React Testing Library
+- [ ] **CI/CD** : GitHub Actions, déploiement automatique
+- [ ] **Monitoring** : Prometheus, Grafana, alertes
+- [ ] **Performance** : Optimisation des requêtes, cache Redis
+- [ ] **Sécurité** : Audit de sécurité, tests de pénétration
+- [ ] **Documentation** : API docs avec Swagger/OpenAPI
 
 ## 🤝 Contribution
 
