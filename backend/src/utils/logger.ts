@@ -69,7 +69,10 @@ export const logger = winston.createLogger({
 
 // En production, ne pas logger sur la console
 if (process.env.NODE_ENV === 'production') {
-  logger.remove(logger.transports[0]); // Retire le transport console
+  const consoleTransport = logger.transports.find(t => t.constructor.name === 'Console');
+  if (consoleTransport) {
+    logger.remove(consoleTransport); // Retire le transport console
+  }
 }
 
 // Fonction utilitaire pour logger les requêtes HTTP
