@@ -11,7 +11,7 @@ export const errorHandler = (
   error: CustomError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   // Log de l'erreur
   logger.error('Erreur dans l\'application:', {
@@ -77,7 +77,7 @@ export const asyncHandler = (fn: Function) => {
 };
 
 // Middleware pour les erreurs 404
-export const notFound = (req: Request, res: Response, next: NextFunction): void => {
+export const notFound = (req: Request, _res: Response, next: NextFunction): void => {
   const error = new Error(`Route non trouvée - ${req.originalUrl}`) as CustomError;
   error.statusCode = 404;
   next(error);
