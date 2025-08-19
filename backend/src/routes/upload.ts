@@ -1,26 +1,28 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs-extra';
+import fs from 'fs';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 const router = express.Router();
 
 // Configuration de multer pour l'upload de fichiers
 const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
+  destination: async (_req, _file, cb) => {
     const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
-    await fs.ensureDir(uploadDir);
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const extension = path.extname(file.originalname);
     cb(null, `audio-${uniqueSuffix}${extension}`);
   }
 });
 
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Types de fichiers audio acceptés
   const allowedMimeTypes = [
     'audio/wav',
@@ -51,7 +53,7 @@ const upload = multer({
 });
 
 // POST /api/upload/audio - Upload et transcription d'un fichier audio
-router.post('/audio', upload.single('audio'), asyncHandler(async (req, res) => {
+router.post('/audio', upload.single('audio'), asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -59,7 +61,7 @@ router.post('/audio', upload.single('audio'), asyncHandler(async (req, res) => {
     });
   }
 
-  const { sessionId, model, language } = req.body;
+  const { sessionId, model: _model, language: _language } = req.body;
   const filePath = req.file.path;
 
   try {
@@ -88,7 +90,7 @@ router.post('/audio', upload.single('audio'), asyncHandler(async (req, res) => {
       message: 'Fichier transcrit avec succès',
     };
 
-    logger.info(`Transcription terminée: ${transcriptionResult.text.length} caractères en ${transcriptionResult.processingTime}ms`);
+    logger.info(`Transcription terminée: ${transcriptionResult.text.length} caractères`);
 
     res.json(response);
 
@@ -109,7 +111,7 @@ router.post('/audio', upload.single('audio'), asyncHandler(async (req, res) => {
 }));
 
 // POST /api/upload/batch - Upload et transcription de plusieurs fichiers
-router.post('/batch', upload.array('audio', 10), asyncHandler(async (req, res) => {
+router.post('/batch', upload.array('audio', 10), asyncHandler(async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
   
   if (!files || files.length === 0) {
@@ -119,7 +121,7 @@ router.post('/batch', upload.array('audio', 10), asyncHandler(async (req, res) =
     });
   }
 
-  const { sessionId, model, language } = req.body;
+  const { sessionId, model: _model, language: _language } = req.body;
   const results = [];
 
   try {
@@ -196,7 +198,7 @@ router.post('/batch', upload.array('audio', 10), asyncHandler(async (req, res) =
 }));
 
 // GET /api/upload/formats - Récupérer les formats supportés
-router.get('/formats', asyncHandler(async (req, res) => {
+router.get('/formats', asyncHandler(async (_req: Request, res: Response) => {
   const supportedFormats = [
     {
       extension: '.wav',
@@ -244,7 +246,7 @@ router.get('/formats', asyncHandler(async (req, res) => {
 }));
 
 // Middleware de gestion d'erreur pour multer
-router.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+router.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({

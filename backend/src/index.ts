@@ -33,7 +33,7 @@ const io = new SocketIOServer(server, {
   transports: ['websocket', 'polling']
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5002;
 
 // Middleware de sécurité
 app.use(helmet());
@@ -105,9 +105,10 @@ const startServer = async (): Promise<void> => {
     // await connectDatabase();
     logger.info('⚠️  Base de données désactivée temporairement');
     
-    // Démarrage du serveur
-    server.listen(PORT, () => {
-      logger.info(`🚀 Serveur démarré sur le port ${PORT}`);
+    // Démarrage du serveur sur toutes les interfaces pour accès externe
+    server.listen(Number(PORT), '0.0.0.0', () => {
+      logger.info(`🚀 Serveur démarré sur le port ${PORT} (toutes interfaces)`);
+      logger.info(`🌐 Accessible sur: http://ai.intelios.us:${PORT}`);
       logger.info(`📝 Documentation API: http://localhost:${PORT}/api/docs`);
       logger.info(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);
     });

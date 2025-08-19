@@ -16,11 +16,11 @@ export default defineConfig({
     allowedHosts: ['ai.intelios.us', 'localhost'],
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5002',
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5002',
         changeOrigin: true,
         ws: true,
       },
