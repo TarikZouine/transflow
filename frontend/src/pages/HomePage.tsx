@@ -18,6 +18,7 @@ import {
   TrendingUp,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import AuthStatus from '../components/AuthStatus';
 
 interface CallStats {
   totalCalls: number;
@@ -133,6 +134,9 @@ const HomePage: React.FC = () => {
 
   return (
     <Box>
+      {/* Composant de test d'authentification */}
+      <AuthStatus />
+      
       <Typography variant="h3" component="h1" gutterBottom>
         Bienvenue sur TransFlow
       </Typography>

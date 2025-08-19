@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Box, Grid, Paper, Typography, Chip } from '@mui/material';
 import { getSocket, subscribeToCall } from '../services/ws';
 import { apiService } from '../services/api';
+import '../styles/animations.css';
 
 interface CallBrief {
   id: string;
@@ -115,6 +116,54 @@ const TranscriptsLive: React.FC = () => {
           } else {
             // Ajouter un nouvel indicateur
             arr.push(`${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}⏳`);
+          }
+        } else if (t.status === 'partial') {
+          // Message temps réel mot par mot - METTRE À JOUR la bulle existante
+          const textWithTime = t.processingTimeMs ? 
+            `${t.text} [${t.processingTimeMs}ms]` : 
+            t.text;
+          
+          // Ajouter le moteur et l'indicateur temps réel
+          const engineTag = t.engine ? ` [${t.engine.toUpperCase()}]` : '';
+          const realtimeTag = t.realtime ? ` [REALTIME]` : '';
+          const finalText = textWithTime + engineTag + realtimeTag;
+          
+          // Chercher une bulle temps réel existante pour ce fichier audio (in=client, out=agent)
+          const existingRealtimeIndex = arr.findIndex(line => 
+            line.includes('[REALTIME]') && line.includes(prefix.replace(':', ''))
+          );
+          
+          if (existingRealtimeIndex >= 0) {
+            // Mettre à jour la bulle temps réel existante
+            const timestamp = arr[existingRealtimeIndex].split(' — ')[0];
+            arr[existingRealtimeIndex] = `${timestamp} — ${prefix}${finalText}`;
+          } else {
+            // Créer une nouvelle bulle temps réel
+            arr.push(`${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}${finalText}`);
+          }
+        } else if (t.status === 'consolidated') {
+          // Message consolidé final - REMPLACER la bulle temps réel
+          const textWithTime = t.processingTimeMs ? 
+            `${t.text} [${t.processingTimeMs}ms]` : 
+            t.text;
+          
+          // Ajouter le moteur et l'indicateur consolidé
+          const engineTag = t.engine ? ` [${t.engine.toUpperCase()}]` : '';
+          const consolidatedTag = t.consolidated ? ` [CONSOLIDATED]` : '';
+          const finalText = textWithTime + engineTag + consolidatedTag;
+          
+          // Remplacer la bulle temps réel par le message consolidé
+          const existingRealtimeIndex = arr.findIndex(line => 
+            line.includes('[REALTIME]') && line.includes(prefix.replace(':', ''))
+          );
+          
+          if (existingRealtimeIndex >= 0) {
+            // Remplacer la bulle temps réel par le consolidé
+            const timestamp = arr[existingRealtimeIndex].split(' — ')[0];
+            arr[existingRealtimeIndex] = `${timestamp} — ${prefix}${finalText}`;
+          } else {
+            // Ajouter le message consolidé
+            arr.push(`${new Date(t.tsMs).toLocaleTimeString()} — ${prefix}${finalText}`);
           }
         } else {
           // Remplacer l'indicateur "en cours" par le texte final
@@ -239,11 +288,15 @@ const TranscriptsLive: React.FC = () => {
                               const text = parts[1];
                               const timeMatch = text.match(/\[(\d+)ms\]$/);
                               const engineMatch = text.match(/\[(WHISPER|VOSK)\]$/);
+                              const realtimeMatch = text.match(/\[REALTIME\]$/);
+                              const consolidatedMatch = text.match(/\[CONSOLIDATED\]$/);
                               
-                              if (timeMatch || engineMatch) {
+                              if (timeMatch || engineMatch || realtimeMatch || consolidatedMatch) {
                                 let displayText = text;
                                 let timeDisplay = null;
                                 let engineDisplay = null;
+                                let realtimeDisplay = null;
+                                let consolidatedDisplay = null;
                                 
                                 // Extraire le temps de traitement
                                 if (timeMatch) {
@@ -282,11 +335,52 @@ const TranscriptsLive: React.FC = () => {
                                   displayText = displayText.replace(/\[(WHISPER|VOSK)\]$/, '');
                                 }
                                 
+                                // Indicateur temps réel
+                                if (realtimeMatch) {
+                                  realtimeDisplay = (
+                                    <Box component="span" sx={{ 
+                                      fontSize: '0.6em', 
+                                      color: '#ff6b35',
+                                      ml: 1,
+                                      fontFamily: 'monospace',
+                                      fontWeight: 'bold',
+                                      backgroundColor: '#fff3e0',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      animation: 'pulse 1.5s infinite'
+                                    }}>
+                                      REALTIME
+                                    </Box>
+                                  );
+                                  displayText = displayText.replace(/\[REALTIME\]$/, '');
+                                }
+                                
+                                // Indicateur consolidé
+                                if (consolidatedMatch) {
+                                  consolidatedDisplay = (
+                                    <Box component="span" sx={{ 
+                                      fontSize: '0.6em', 
+                                      color: '#4caf50',
+                                      ml: 1,
+                                      fontFamily: 'monospace',
+                                      fontWeight: 'bold',
+                                      backgroundColor: '#e8f5e8',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px'
+                                    }}>
+                                      CONSOLIDATED
+                                    </Box>
+                                  );
+                                  displayText = displayText.replace(/\[CONSOLIDATED\]$/, '');
+                                }
+                                
                                 return (
                                   <>
                                     {displayText}
                                     {timeDisplay}
                                     {engineDisplay}
+                                    {realtimeDisplay}
+                                    {consolidatedDisplay}
                                   </>
                                 );
                               }

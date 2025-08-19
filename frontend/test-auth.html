@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Authentification TransFlow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #1976d2;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Test Authentification TransFlow</h1>
+        
+        <div class="form-group">
+            <label for="password">Mot de passe:</label>
+            <input type="password" id="password" placeholder="Saisissez le mot de passe">
+        </div>
+        
+        <button onclick="testAuth()">Tester l'authentification</button>
+        
+        <div id="status"></div>
+        
+        <div class="info" style="margin-top: 30px; padding: 15px;">
+            <h3>Informations de test:</h3>
+            <p><strong>Mot de passe correct:</strong> TransFlow2024!</p>
+            <p><strong>URL de l'app:</strong> <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>
+            <p><strong>Page de connexion:</strong> <a href="http://localhost:3000/login" target="_blank">http://localhost:3000/login</a></p>
+        </div>
+    </div>
+
+    <script>
+        function testAuth() {
+            const password = document.getElementById('password').value;
+            const statusDiv = document.getElementById('status');
+            
+            // Mot de passe en dur pour le test
+            const correctPassword = 'TransFlow2024!';
+            
+            if (password === correctPassword) {
+                statusDiv.innerHTML = `
+                    <div class="status success">
+                        <h3>✅ Authentification réussie!</h3>
+                        <p>Le mot de passe est correct. Vous pouvez maintenant accéder à l'application.</p>
+                        <p><a href="http://localhost:3000" target="_blank">Accéder à TransFlow</a></p>
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="status error">
+                        <h3>❌ Authentification échouée</h3>
+                        <p>Le mot de passe saisi est incorrect.</p>
+                        <p><strong>Mot de passe attendu:</strong> ${correctPassword}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Permettre l'utilisation de la touche Entrée
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testAuth();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+

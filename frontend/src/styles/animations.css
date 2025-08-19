@@ -1,0 +1,24 @@
+/* Animations pour le temps réel */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+@keyframes realtime-glow {
+  0% { box-shadow: 0 0 5px rgba(255, 107, 53, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(255, 107, 53, 0.6); }
+  100% { box-shadow: 0 0 5px rgba(255, 107, 53, 0.3); }
+}
+
+.realtime-indicator {
+  animation: pulse 1.5s infinite, realtime-glow 2s infinite;
+}
+
+.consolidated-indicator {
+  animation: realtime-glow 3s infinite;
+}
+
+
+
+

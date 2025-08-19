@@ -151,6 +151,9 @@ try {
         text,
         status = 'completed', // Par défaut pour compatibilité
         processingTimeMs, // Extraire directement sans valeur par défaut
+        engine = 'whisper', // Engine de transcription
+        realtime = false, // Mode temps réel
+        consolidated = false, // Transcription consolidée
         ...otherFields // Capturer tous les autres champs
       } = payload || {};
       
@@ -194,8 +197,8 @@ try {
         return;
       }
 
-      // Pour les événements "transcribing", on ne fait que l'affichage WebSocket
-      if (status === 'transcribing') {
+      // Pour les événements "transcribing" et "partial", on ne fait que l'affichage WebSocket
+      if (status === 'transcribing' || status === 'partial') {
         const wsPayload = {
           callId,
           tsMs,
@@ -205,11 +208,20 @@ try {
           offsetBytes,
           text: cleanText,
           status,
-          processingTimeMs: finalProcessingTimeMs // Inclure le temps de traitement
+          processingTimeMs: finalProcessingTimeMs,
+          engine: engine || 'whisper',
+          realtime: realtime || false,
+          consolidated: consolidated || false
         };
         // Emettre sur WebSocket (room par callId et global)
         io.to(`call:${callId}`).emit('transcript', wsPayload);
         io.emit('transcript_all', wsPayload);
+        
+        // Pour les messages partiels, on peut aussi les logger
+        if (status === 'partial') {
+          console.log(`🔤 [REALTIME] ${callId} - ${cleanText}`);
+        }
+        
         return; // Ne pas persister en base ni en log
       }
 
@@ -247,20 +259,24 @@ try {
         if (old) recentKeys.delete(old);
       }
 
-      // Persister en base (leader uniquement)
-      try {
-        const currentEngine = global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
-        const [result] = await mysqlPool.execute(
-          'INSERT INTO transcripts (call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms, transcription_engine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [callId, tsMs, speaker, lang, confidence, offsetBytes, cleanText, finalProcessingTimeMs, currentEngine]
-        );
-        console.log(`📝 Transcript inséré call=${callId} id=${result?.insertId ?? 'n/a'} time=${finalProcessingTimeMs}ms engine=${currentEngine}`);
-      } catch (dbErr) {
-        console.error('❌ Insertion MySQL transcript échouée:', dbErr.message);
+      // Persister en base (leader uniquement) - seulement pour les messages complets
+      if (status === 'completed' || status === 'consolidated') {
+        try {
+          const currentEngine = engine || global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
+          const [result] = await mysqlPool.execute(
+            'INSERT INTO transcripts (call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms, transcription_engine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [callId, tsMs, speaker, lang, confidence, offsetBytes, cleanText, finalProcessingTimeMs, currentEngine]
+          );
+          
+          const statusText = status === 'consolidated' ? 'CONSOLIDATED' : 'COMPLETED';
+          console.log(`📝 Transcript ${statusText} inséré call=${callId} id=${result?.insertId ?? 'n/a'} time=${finalProcessingTimeMs}ms engine=${currentEngine}`);
+        } catch (dbErr) {
+          console.error('❌ Insertion MySQL transcript échouée:', dbErr.message);
+        }
       }
 
       // Écrire en fichier texte (/tmp/transcripts.log) (après dédup leader)
-      const currentEngine = global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
+      const currentEngine = engine || global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
       const logLine = JSON.stringify({
         ts: new Date().toISOString(),
         callId,
@@ -271,7 +287,10 @@ try {
         offsetBytes,
         text: cleanText,
         processingTimeMs: finalProcessingTimeMs,
-        transcriptionEngine: currentEngine
+        transcriptionEngine: currentEngine,
+        status: status,
+        realtime: realtime,
+        consolidated: consolidated
       }) + '\n';
       fs.appendFile('/tmp/transcripts.log', logLine, (err) => {
         if (err) console.error('❌ Écriture transcript /tmp/transcripts.log échouée:', err.message);
@@ -286,7 +305,10 @@ try {
         offsetBytes,
         text: cleanText,
         processingTimeMs: finalProcessingTimeMs,
-        transcriptionEngine: currentEngine
+        transcriptionEngine: currentEngine,
+        status: status,
+        realtime: realtime,
+        consolidated: consolidated
       };
       // Emettre sur WebSocket (room par callId)
       io.to(`call:${callId}`).emit('transcript', wsPayload);

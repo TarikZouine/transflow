@@ -11,6 +11,7 @@ import {
   ListItemText,
   Box,
   Container,
+  Button,
 } from '@mui/material';
 import {
   Home,
@@ -18,8 +19,10 @@ import {
   Phone,
   History,
   Settings,
+  Logout,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const drawerWidth = 240;
 
@@ -30,6 +33,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const menuItems = [
     { text: 'Accueil', icon: <Home />, path: '/' },
@@ -50,9 +54,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       >
         <Toolbar>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             TransFlow - Transcription en temps réel
           </Typography>
+          <Button
+            color="inherit"
+            onClick={logout}
+            startIcon={<Logout />}
+            sx={{ color: 'white' }}
+          >
+            Déconnexion
+          </Button>
         </Toolbar>
       </AppBar>
       
