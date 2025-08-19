@@ -4,10 +4,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import { asyncHandler } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
-import { WhisperService } from '../services/whisper';
-
 const router = express.Router();
-const whisperService = new WhisperService();
 
 // Configuration de multer pour l'upload de fichiers
 const storage = multer.diskStorage({
@@ -68,11 +65,8 @@ router.post('/audio', upload.single('audio'), asyncHandler(async (req, res) => {
   try {
     logger.info(`Début de transcription du fichier: ${req.file.originalname}`);
 
-    // Transcription du fichier
-    const transcriptionResult = await whisperService.transcribeFile(filePath, {
-      model,
-      language,
-    });
+    // TODO: Transcription du fichier avec Vosk
+    const transcriptionResult = { text: 'Transcription non disponible - utiliser le système temps réel', confidence: 0 };
 
     if (!transcriptionResult) {
       return res.status(500).json({
@@ -133,10 +127,8 @@ router.post('/batch', upload.array('audio', 10), asyncHandler(async (req, res) =
 
     for (const file of files) {
       try {
-        const transcriptionResult = await whisperService.transcribeFile(file.path, {
-          model,
-          language,
-        });
+        // TODO: Transcription avec Vosk
+        const transcriptionResult = { text: 'Transcription non disponible - utiliser le système temps réel', confidence: 0 };
 
         if (transcriptionResult) {
           results.push({

@@ -14,6 +14,7 @@ interface CallBrief {
 const TranscriptsLive: React.FC = () => {
   const [calls, setCalls] = useState<CallBrief[]>([]);
   const [lines, setLines] = useState<Record<string, string[]>>({});
+  const [enabledCalls, setEnabledCalls] = useState<Set<string>>(new Set()); // NOUVEAU: Tracker les appels activés
 
   const baseUrl = useMemo(() => {
     const env = (import.meta as any).env;
@@ -26,6 +27,40 @@ const TranscriptsLive: React.FC = () => {
   // Déduplication des transcripts pour éviter les doublons
   const processedTranscripts = useRef(new Set());
   const scrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // NOUVEAU: Fonctions pour activer/désactiver la transcription
+  const toggleTranscription = async (callId: string) => {
+    console.log(`🔧 DEBUG: Clic sur bouton pour ${callId}`);
+    try {
+      const isEnabled = enabledCalls.has(callId);
+      const action = isEnabled ? 'disable' : 'enable';
+      const url = `${baseUrl}/api/transcription/${action}/${callId}`;
+      
+      console.log(`🔧 DEBUG: Envoi requête ${action} vers ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      console.log(`🔧 DEBUG: Réponse reçue:`, response.status);
+      
+      if (response.ok) {
+        const newEnabledCalls = new Set(enabledCalls);
+        if (isEnabled) {
+          newEnabledCalls.delete(callId);
+        } else {
+          newEnabledCalls.add(callId);
+        }
+        setEnabledCalls(newEnabledCalls);
+        console.log(`✅ Transcription ${action}d pour l'appel ${callId}`);
+      } else {
+        console.error(`❌ Erreur HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur toggle transcription:', error);
+    }
+  };
 
   // Fonction pour charger l'historique des transcripts d'un appel
   const loadTranscriptHistory = async (callId: string) => {
@@ -71,10 +106,29 @@ const TranscriptsLive: React.FC = () => {
         }
       } catch {}
     };
+    
+    const fetchEnabledCalls = async () => {
+      try {
+        const response = await fetch(`${baseUrl}/api/transcription/enabled`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setEnabledCalls(new Set(data.enabled_calls));
+          }
+        }
+      } catch (error) {
+        console.error('Erreur chargement appels activés:', error);
+      }
+    };
+    
     fetchActive();
-    const interval = setInterval(fetchActive, 3000);
+    fetchEnabledCalls(); // NOUVEAU: Charger l'état des transcriptions
+    const interval = setInterval(() => {
+      fetchActive();
+      fetchEnabledCalls(); // Synchroniser régulièrement
+    }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [baseUrl]);
 
   useEffect(() => {
     const socket = getSocket(baseUrl);
@@ -225,7 +279,23 @@ const TranscriptsLive: React.FC = () => {
             <Paper elevation={2} sx={{ p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="subtitle1" fontFamily="monospace">{c.phoneNumber} → {c.calledNumber || '-'}</Typography>
-                <Chip size="small" label={c.status === 'active' ? 'En cours' : 'Terminé'} color={c.status === 'active' ? 'success' : 'default'} />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <button
+                    onClick={() => toggleTranscription(c.id)}
+                    style={{
+                      padding: '4px 8px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      backgroundColor: enabledCalls.has(c.id) ? '#ff4444' : '#4CAF50',
+                      color: 'white'
+                    }}
+                  >
+                    {enabledCalls.has(c.id) ? '🛑 STOP' : '▶️ START'}
+                  </button>
+                  <Chip size="small" label={c.status === 'active' ? 'En cours' : 'Terminé'} color={c.status === 'active' ? 'success' : 'default'} />
+                </Box>
               </Box>
               <Box 
                 ref={(el) => { scrollRefs.current[c.id] = el; }}

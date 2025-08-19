@@ -29,8 +29,8 @@ try {
   // Redis subscriber pour recevoir les transcripts en temps réel
   const Redis = require('ioredis');
   const crypto = require('crypto');
-  const redis = new Redis(process.env.REDIS_URL || undefined);
-  const redisLeader = new Redis(process.env.REDIS_URL || undefined); // Connexion séparée pour le leadership
+  const redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379/0');
+  const redisLeader = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379/0'); // Connexion séparée pour le leadership
   const TRANSCRIPT_CHANNEL = process.env.TRANSCRIPT_CHANNEL || 'transcripts.realtime.v2';
 
   // Redis séparé pour la déduplication (pas en mode subscriber)
@@ -39,7 +39,7 @@ try {
   // Initialiser la connexion de déduplication après la subscription
   function initDedupConnection() {
     if (!redisDedup) {
-      redisDedup = new Redis(process.env.REDIS_URL || undefined);
+      redisDedup = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379/0');
       console.log('🔒 Connexion Redis déduplication initialisée');
     }
   }
@@ -103,7 +103,7 @@ try {
   const mysqlPool = mysql.createPool(mysqlConfig);
 
   // Configuration du moteur de transcription
-  const TRANSCRIPTION_ENGINE = process.env.TRANSCRIPTION_ENGINE || 'whisper';
+  const TRANSCRIPTION_ENGINE = process.env.TRANSCRIPTION_ENGINE || 'vosk';
   console.log(`🎯 Moteur de transcription configuré: ${TRANSCRIPTION_ENGINE}`);
 
   // Test connectivité
@@ -112,6 +112,74 @@ try {
   }).catch((e)=>{
     console.error('❌ MySQL connexion KO:', e.message);
   });
+
+  // Monitoring automatique des appels actifs
+  async function monitorActiveCalls() {
+    try {
+      const monitorPath = '/home/nfs_proxip_monitor/';
+      const files = fs.readdirSync(monitorPath);
+      const audioFiles = files.filter(file => file.endsWith('.sln') || file.endsWith('.wav'));
+      
+      const now = new Date();
+      const activeCallIds = new Set();
+      
+      // Scanner tous les fichiers audio
+      for (const file of audioFiles) {
+        let match = file.match(/^(\d+\.\d+)-(.+)-(\d+)-(in|out)\.(sln|wav)$/);
+        let phoneNumber, calledNumber = null, type, timestampStr, extension;
+        
+        if (match) {
+          // Nouveau format avec numéro appelé
+          [, timestampStr, phoneNumber, calledNumber, type, extension] = match;
+        } else {
+          // Ancien format sans numéro appelé
+          match = file.match(/^(\d+\.\d+)-(.+)-(in|out)\.(sln|wav)$/);
+          if (!match) continue;
+          [, timestampStr, phoneNumber, type, extension] = match;
+        }
+        
+        const callId = `${timestampStr}-${phoneNumber}`;
+        const filePath = path.join(monitorPath, file);
+        const stats = fs.statSync(filePath);
+        
+        // Vérifier si le fichier a été modifié dans les 30 dernières secondes
+        const timeSinceModified = now.getTime() - stats.mtime.getTime();
+        const isActive = timeSinceModified <= 30000; // 30 secondes
+        
+        if (isActive) {
+          activeCallIds.add(callId);
+          
+          // Insérer ou mettre à jour l'appel actif
+          const insertQuery = `
+            INSERT INTO transcription_control (call_id, is_enabled, last_seen) 
+            VALUES (?, FALSE, NOW()) 
+            ON DUPLICATE KEY UPDATE last_seen = NOW()
+          `;
+          await mysqlPool.execute(insertQuery, [callId]);
+        }
+      }
+      
+      // Retirer les appels inactifs (plus de 30s)
+      const cleanupQuery = `
+        DELETE FROM transcription_control 
+        WHERE last_seen < DATE_SUB(NOW(), INTERVAL 30 SECOND)
+      `;
+      const [cleanupResult] = await mysqlPool.execute(cleanupQuery);
+      
+      if (cleanupResult.affectedRows > 0) {
+        console.log(`🧹 Nettoyage: ${cleanupResult.affectedRows} appels inactifs supprimés`);
+      }
+      
+      console.log(`📊 Monitoring: ${activeCallIds.size} appels actifs détectés`);
+      
+    } catch (error) {
+      console.error('❌ Erreur monitoring automatique:', error);
+    }
+  }
+
+  // Démarrer le monitoring automatique toutes les 5 secondes
+  setInterval(monitorActiveCalls, 5000);
+  console.log('🔄 Monitoring automatique des appels actifs démarré (toutes les 5s)');
 
   // Branche l'écoute Redis -> DB -> WebSocket
   redis.subscribe(TRANSCRIPT_CHANNEL, (err, count) => {
@@ -129,7 +197,7 @@ try {
 
   function makeKey({ callId, tsMs, speaker, offsetBytes, text, processingTimeMs, transcriptionEngine }) {
     const h = crypto.createHash('md5').update(String(text || '')).digest('hex').slice(0, 8);
-    return `${callId}|${speaker}|${tsMs}|${offsetBytes}|${processingTimeMs || 'null'}|${transcriptionEngine || 'whisper'}|${h}`;
+    return `${callId}|${speaker}|${tsMs}|${offsetBytes}|${processingTimeMs || 'null'}|${transcriptionEngine || 'vosk'}|${h}`;
   }
 
   redis.on('message', async (channel, message) => {
@@ -151,7 +219,7 @@ try {
         text,
         status = 'completed', // Par défaut pour compatibilité
         processingTimeMs, // Extraire directement sans valeur par défaut
-        engine = 'whisper', // Engine de transcription
+        engine = 'vosk', // Engine de transcription
         realtime = false, // Mode temps réel
         consolidated = false, // Transcription consolidée
         ...otherFields // Capturer tous les autres champs
@@ -209,7 +277,7 @@ try {
           text: cleanText,
           status,
           processingTimeMs: finalProcessingTimeMs,
-          engine: engine || 'whisper',
+          engine: engine || 'vosk',
           realtime: realtime || false,
           consolidated: consolidated || false
         };
@@ -231,7 +299,7 @@ try {
       }
 
       // Distributed dedupe using Redis (best-effort)
-      const dedupeEngine = global.TRANSCRIPTION_ENGINE || 'whisper';
+      const dedupeEngine = global.TRANSCRIPTION_ENGINE || 'vosk';
       const key = makeKey({ callId, tsMs, speaker, offsetBytes, text: cleanText, processingTimeMs: finalProcessingTimeMs, transcriptionEngine: dedupeEngine });
       const redisDedupeKey = `transcripts:dedupe:${key}`;
       try {
@@ -262,7 +330,8 @@ try {
       // Persister en base (leader uniquement) - seulement pour les messages complets
       if (status === 'completed' || status === 'consolidated') {
         try {
-          const currentEngine = engine || global.TRANSCRIPTION_ENGINE || TRANSCRIPTION_ENGINE;
+          // Forcer Vosk puisqu'on n'utilise que Vosk maintenant
+          const currentEngine = 'vosk';
           const [result] = await mysqlPool.execute(
             'INSERT INTO transcripts (call_id, ts_ms, speaker, lang, confidence, offset_bytes, text, processing_time_ms, transcription_engine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [callId, tsMs, speaker, lang, confidence, offsetBytes, cleanText, finalProcessingTimeMs, currentEngine]
@@ -408,10 +477,10 @@ try {
     try {
       const { engine } = req.body;
       
-      if (!engine || !['whisper', 'vosk'].includes(engine)) {
+      if (!engine || !['vosk'].includes(engine)) {
         return res.status(400).json({
           success: false,
-          error: 'Moteur invalide. Doit être "whisper" ou "vosk"'
+          error: 'Moteur invalide. Doit être "vosk"'
         });
       }
 
@@ -450,6 +519,89 @@ try {
     }
   });
 
+  // NOUVEAU: Routes pour contrôler la transcription sélective
+  app.post('/api/transcription/enable/:callId', async (req, res) => {
+    try {
+      const { callId } = req.params;
+      
+      // Insérer/mettre à jour dans la table de contrôle MySQL
+      const query = `
+        INSERT INTO transcription_control (call_id, is_enabled, updated_at) 
+        VALUES (?, TRUE, NOW()) 
+        ON DUPLICATE KEY UPDATE is_enabled = TRUE, updated_at = NOW()
+      `;
+      
+      await mysqlPool.execute(query, [callId]);
+      enabledTranscriptions.add(callId);  // Tracker l'état local
+      console.log(`✅ Transcription activée pour l'appel: ${callId}`);
+      
+      res.json({
+        success: true,
+        message: `Transcription activée pour ${callId}`,
+        callId
+      });
+    } catch (error) {
+      console.error('❌ Erreur activation transcription:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur serveur'
+      });
+    }
+  });
+
+  app.post('/api/transcription/disable/:callId', async (req, res) => {
+    try {
+      const { callId } = req.params;
+      
+      // Mettre à jour dans la table de contrôle MySQL
+      const query = `
+        UPDATE transcription_control 
+        SET is_enabled = FALSE, updated_at = NOW() 
+        WHERE call_id = ?
+      `;
+      
+      await mysqlPool.execute(query, [callId]);
+      enabledTranscriptions.delete(callId);  // Tracker l'état local
+      console.log(`❌ Transcription désactivée pour l'appel: ${callId}`);
+      
+      res.json({
+        success: true,
+        message: `Transcription désactivée pour ${callId}`,
+        callId
+      });
+    } catch (error) {
+      console.error('❌ Erreur désactivation transcription:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur serveur'
+      });
+    }
+  });
+
+  // NOUVEAU: Tracker les appels activés côté backend
+  const enabledTranscriptions = new Set();
+
+  // Route pour récupérer les appels activés pour transcription
+  app.get('/api/transcription/enabled', async (req, res) => {
+    try {
+      const query = 'SELECT call_id FROM transcription_control WHERE is_enabled = TRUE';
+      const [results] = await mysqlPool.execute(query);
+      const enabledCalls = results.map(row => row.call_id);
+      
+      res.json({
+        success: true,
+        enabled_calls: enabledCalls,
+        message: 'Liste des appels activés'
+      });
+    } catch (error) {
+      console.error('❌ Erreur récupération appels activés:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur serveur'
+      });
+    }
+  });
+
   // Démarrer le serveur HTTP via httpServer pour partager le port
   const server = httpServer.listen(PORT, () => {
     console.log(`🚀 Serveur de test + WebSocket démarré sur le port ${PORT}`);
@@ -464,7 +616,7 @@ try {
 }
 
 // Fonction pour scanner les appels
-function scanCalls() {
+async function scanCalls() {
   const monitorPath = '/home/nfs_proxip_monitor/';
   
   try {
@@ -559,11 +711,11 @@ app.get('/api/calls/stream-all', (req, res) => {
 
   let isStreaming = true;
   
-  const streamAllCalls = () => {
+  const streamAllCalls = async () => {
     if (!isStreaming) return;
     
     try {
-      const calls = scanCalls();
+      const calls = await scanCalls();
       
       // Envoyer la liste complète des appels
       res.write(`event: calls-update\ndata: ${JSON.stringify({
@@ -611,8 +763,8 @@ app.get('/api/calls/stream-all', (req, res) => {
 });
 
 // Routes pour les appels
-app.get('/api/calls', (req, res) => {
-  const calls = scanCalls();
+app.get('/api/calls', async (req, res) => {
+  const calls = await scanCalls();
   res.json({
     success: true,
     data: calls.map(call => ({
@@ -632,8 +784,8 @@ app.get('/api/calls', (req, res) => {
   });
 });
 
-app.get('/api/calls/active', (req, res) => {
-  const calls = scanCalls().filter(call => call.status === 'active');
+app.get('/api/calls/active', async (req, res) => {
+  const calls = (await scanCalls()).filter(call => call.status === 'active');
   res.json({
     success: true,
     data: calls.map(call => ({
@@ -654,12 +806,12 @@ app.get('/api/calls/active', (req, res) => {
 });
 
 // Routes de streaming audio
-app.get('/api/calls/:id/stream/:type', (req, res) => {
+app.get('/api/calls/:id/stream/:type', async (req, res) => {
   const { id, type } = req.params; // type = 'in' ou 'out'
   
   try {
     // Trouver l'appel correspondant
-    const calls = scanCalls();
+    const calls = await scanCalls();
     const call = calls.find(c => c.id === id);
     
     if (!call) {
@@ -1445,23 +1597,15 @@ app.get('/api/calls/:id/stream-sln/:type', (req, res) => {
 // Ajouter les endpoints de streaming par chunks
 createStreamingEndpoint(app, scanCalls);
 
-// Gestion des signaux pour éviter l'arrêt inattendu
+// Gestion des signaux pour un arrêt propre
 process.on('SIGINT', () => {
-  console.log('\n⚠️ Signal SIGINT reçu, maintien du serveur...');
+  console.log('\n🛑 Arrêt du serveur...');
+  process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n⚠️ Signal SIGTERM reçu, maintien du serveur...');
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('❌ Exception non capturée:', error);
-  console.log('🔄 Le serveur continue de fonctionner...');
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Promesse rejetée non gérée:', reason);
-  console.log('🔄 Le serveur continue de fonctionner...');
+  console.log('\n🛑 Arrêt du serveur...');
+  process.exit(0);
 });
 
 if (!SERVER_STARTED) {

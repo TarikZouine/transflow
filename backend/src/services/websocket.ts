@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { logger } from '../utils/logger';
-import { WhisperService } from './whisper';
+// Whisper service supprimé - utilisation de Vosk via Redis
 
 interface SessionData {
   id: string;
@@ -12,13 +12,13 @@ interface SessionData {
 
 class WebSocketService {
   private io: SocketIOServer;
-  private whisperService: WhisperService;
+  // WhisperService supprimé - utilisation de Vosk via Redis
   private activeSessions: Map<string, SessionData> = new Map();
   private socketSessions: Map<string, string> = new Map(); // socketId -> sessionId
 
   constructor(io: SocketIOServer) {
     this.io = io;
-    this.whisperService = new WhisperService();
+    // WhisperService supprimé - utilisation de Vosk via Redis
   }
 
   public setupEventHandlers(): void {
@@ -71,22 +71,8 @@ class WebSocketService {
             return;
           }
 
-          // Traitement du chunk audio avec Whisper
-          const audioBuffer = Buffer.from(data.audioData);
-          const transcriptionResult = await this.whisperService.transcribeAudio(audioBuffer);
-
-          if (transcriptionResult && transcriptionResult.text.trim()) {
-            // Diffuser la transcription à tous les clients de la session
-            this.io.to(sessionId).emit('transcription_update', {
-              sessionId,
-              text: transcriptionResult.text,
-              confidence: transcriptionResult.confidence,
-              timestamp: Date.now(),
-              speaker: data.speaker,
-            });
-
-            logger.debug(`Transcription envoyée pour la session ${sessionId}: ${transcriptionResult.text.substring(0, 50)}...`);
-          }
+          // Traitement audio désactivé - utilisation de Vosk via Redis
+          logger.info(`Chunk audio reçu pour session ${sessionId} - traitement via Vosk/Redis`);
         } catch (error) {
           logger.error('Erreur lors du traitement audio:', error);
           socket.emit('error', { message: 'Erreur lors du traitement audio' });
