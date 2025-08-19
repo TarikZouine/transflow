@@ -56,25 +56,28 @@ router.put('/', asyncHandler(async (req: Request, res: Response) => {
   if (validSettings.confidenceThreshold !== undefined) {
     const threshold = parseFloat(validSettings.confidenceThreshold);
     if (isNaN(threshold) || threshold < 0 || threshold > 1) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Le seuil de confiance doit être entre 0 et 1',
       });
+      return;
     }
   }
   
   if (validSettings.language && !['fr', 'en', 'es', 'de', 'it'].includes(validSettings.language)) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Langue non supportée',
     });
+    return;
   }
   
   if (validSettings.model && !['tiny', 'base', 'small', 'medium', 'large'].includes(validSettings.model)) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Modèle non supporté',
     });
+    return;
   }
   
   // TODO: Implémenter la sauvegarde en base de données
